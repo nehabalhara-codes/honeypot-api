@@ -1,46 +1,46 @@
 from fastapi import FastAPI, Header, HTTPException, Request
 
-# 1️⃣ Create app FIRST
 app = FastAPI()
 
-# 2️⃣ API key
 API_KEY = "my_secret_key_123"
 
-def verify_api_key(x_api_key: str | None):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
-# 3️⃣ Honeypot endpoint
 @app.post("/honeypot")
 async def honeypot(
     request: Request,
     x_api_key: str | None = Header(default=None)
 ):
-    verify_api_key(x_api_key)
+    # API key check
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Read body safely (even if empty or malformed)
+    # SAFE body handling (never crashes)
+    message = ""
     try:
         body = await request.json()
-        message = body.get("message", "")
+        if isinstance(body, dict):
+            message = str(body.get("message", ""))
     except:
         message = ""
 
+    # Simple scam detection
     scam_keywords = [
-        "account", "blocked", "urgent", "click",
-        "verify", "bank", "kyc", "payment", "link"
+        "bank", "account", "blocked", "urgent",
+        "click", "verify", "kyc", "payment", "link"
     ]
 
     scam_detected = any(word in message.lower() for word in scam_keywords)
 
-    reply = (
-        "I am not sure what this means. Can you explain?"
-        if scam_detected
-        else "Thank you for the information."
-    )
-
     return {
         "scam_detected": scam_detected,
-        "agent_reply": reply,
-        "original_message": message
+        "agent_reply": (
+            "I am not sure about this. Can you explain what I need to do?"
+            if scam_detected
+            else "Thank you for the information."
+        ),
+        "extracted_intelligence": {
+            "bank_accounts": [],
+            "upi_ids": [],
+            "phishing_links": []
+        }
     }
-
