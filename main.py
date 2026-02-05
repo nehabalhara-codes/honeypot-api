@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Header, HTTPException, Request
+from typing import Optional
 
 app = FastAPI(
     title="Agentic Honeypot API",
@@ -10,7 +11,7 @@ app = FastAPI(
 # =====================
 API_KEY = "my_secret_key_123"
 
-def verify_api_key(x_api_key: str | None):
+def verify_api_key(x_api_key: Optional[str]):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -23,7 +24,8 @@ SCAM_KEYWORDS = [
 ]
 
 def is_scam(message: str) -> bool:
-    return any(word in message.lower() for word in SCAM_KEYWORDS)
+    text = message.lower()
+    return any(word in text for word in SCAM_KEYWORDS)
 
 # =====================
 # ENDPOINT (NO BODY VALIDATION)
@@ -31,16 +33,18 @@ def is_scam(message: str) -> bool:
 @app.post("/honeypot")
 async def honeypot(
     request: Request,
-    x_api_key: str | None = Header(None)
+    x_api_key: Optional[str] = Header(None)
 ):
     verify_api_key(x_api_key)
 
-    # Try to read JSON body if present (optional)
+    # Safely read body (if any)
+    message = "Test message from honeypot validator"
     try:
         body = await request.json()
-        message = body.get("message", "Test message from honeypot validator")
+        if isinstance(body, dict) and "message" in body:
+            message = body["message"]
     except Exception:
-        message = "Test message from honeypot validator"
+        pass  # No body sent (expected for validator)
 
     scam_detected = is_scam(message)
 
@@ -49,3 +53,5 @@ async def honeypot(
         "agent_reply": "Please explain the issue in more detail.",
         "original_message": message
     }
+
+
