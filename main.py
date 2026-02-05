@@ -10,37 +10,33 @@ async def honeypot(
     request: Request,
     x_api_key: str | None = Header(default=None)
 ):
-    # API key check
+    # API key validation
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # SAFE body handling (never crashes)
-    message = ""
+    # Safe extraction of message text
+    text = ""
     try:
         body = await request.json()
-        if isinstance(body, dict):
-            message = str(body.get("message", ""))
+        message = body.get("message", {})
+        text = message.get("text", "")
     except:
-        message = ""
+        text = ""
 
     # Simple scam detection
     scam_keywords = [
-        "bank", "account", "blocked", "urgent",
-        "click", "verify", "kyc", "payment", "link"
+        "bank", "account", "blocked", "verify",
+        "urgent", "otp", "click"
     ]
 
-    scam_detected = any(word in message.lower() for word in scam_keywords)
+    is_scam = any(word in text.lower() for word in scam_keywords)
 
+    # REQUIRED RESPONSE FORMAT
     return {
-        "scam_detected": scam_detected,
-        "agent_reply": (
-            "I am not sure about this. Can you explain what I need to do?"
-            if scam_detected
-            else "Thank you for the information."
-        ),
-        "extracted_intelligence": {
-            "bank_accounts": [],
-            "upi_ids": [],
-            "phishing_links": []
-        }
+        "status": "success",
+        "reply": (
+            "Why is my account being suspended?"
+            if is_scam
+            else "Thank you for the update."
+        )
     }
